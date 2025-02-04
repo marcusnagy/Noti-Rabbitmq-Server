@@ -1,0 +1,41 @@
+services:
+  rabbitmq:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.rabbitmq
+    container_name: noti-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+      - "61613:61613" # STOMP port
+      - "15674:15674" # WebSTOMP port
+      - "1883:1883"   # MQTT port
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_CONFIG_FILES=/etc/rabbitmq/conf.d
+      - RABBITMQ_ERLANG_COOKIE=secret_cookie
+      - RABBITMQ_NODENAME=noti_rabbitmq@localhost
+    restart: unless-stopped
+    networks:
+      - rabbitmq_net
+
+  relay:
+    image: cloudamqp/websocket-tcp-relay:latest
+    container_name: noti-relay
+    command: --upstream tcp://noti-rabbitmq:5672
+    ports:
+      - "15670:15670"
+    networks:
+      - rabbitmq_net
+    depends_on:
+      - rabbitmq
+
+volumes:
+  rabbitmq_data:
+
+networks:
+  rabbitmq_net:
+    driver: bridge

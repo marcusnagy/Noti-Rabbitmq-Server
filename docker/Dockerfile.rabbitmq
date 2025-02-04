@@ -1,0 +1,22 @@
+FROM rabbitmq:4.0-management-alpine
+
+# Enable RabbitMQ plugins for WebSocket and MQTT support
+RUN rabbitmq-plugins enable --offline rabbitmq_web_stomp \
+    rabbitmq_stomp \
+    rabbitmq_mqtt \
+    rabbitmq_auth_backend_http
+
+# Create configuration directory
+RUN mkdir -p /etc/rabbitmq/conf.d
+
+# Copy configuration files
+COPY rabbitmq.conf /etc/rabbitmq/conf.d/10-main.conf
+
+# Expose additional ports
+EXPOSE 15672 5672 61613 15674 1883
+
+# Set default user and password (change these in production)
+ENV RABBITMQ_DEFAULT_USER=guest
+ENV RABBITMQ_DEFAULT_PASS=guest
+
+CMD ["rabbitmq-server"]

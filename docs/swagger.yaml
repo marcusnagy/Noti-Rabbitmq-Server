@@ -1,0 +1,130 @@
+basePath: /
+definitions:
+  github_com_marcus_jonathan_noti-rabbitmq_internal_models.Notification:
+    properties:
+      application:
+        type: string
+      message:
+        type: string
+      timestamp:
+        type: string
+      type:
+        $ref: '#/definitions/github_com_marcus_jonathan_noti-rabbitmq_internal_models.NotificationType'
+    type: object
+  github_com_marcus_jonathan_noti-rabbitmq_internal_models.NotificationType:
+    enum:
+    - warning
+    - danger
+    - ack
+    - error
+    - info
+    type: string
+    x-enum-varnames:
+    - NotificationTypeWarning
+    - NotificationTypeDanger
+    - NotificationTypeAck
+    - NotificationTypeError
+    - NotificationTypeInfo
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a notification service that handles car metadata and sends
+    notifications.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Notification Service API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Get the health status of the service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health Check
+      tags:
+      - health
+  /v1/applications:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all available applications
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns a list of applications
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List all applications
+      tags:
+      - applications
+  /v1/notifications:
+    post:
+      consumes:
+      - application/json
+      description: Create and publish a new notification to the message broker
+      parameters:
+      - description: Notification object
+        in: body
+        name: notification
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_marcus_jonathan_noti-rabbitmq_internal_models.Notification'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns status ok
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad request - invalid input
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new notification
+      tags:
+      - notifications
+  /v1/notifications/types:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all available notification types
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns a list of notification types
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List notification types
+      tags:
+      - notifications
+schemes:
+- http
+swagger: "2.0"
