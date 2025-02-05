@@ -26,5 +26,5 @@ type Notification struct {
 	Application string           `json:"application"`
 	Type        NotificationType `json:"type"`
 	Message     string           `json:"message"`
-	Timestamp   time.Time        `json:"timestamp"`
+	Timestamp   time.Time        `json:"timestamp,omitempty"`
 }

@@ -87,8 +87,9 @@ func (s *RabbitMQServer) PublishNotification(ctx context.Context, notification m
 		false,
 		false,
 		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
+			ContentType:  "application/json",
+			DeliveryMode: amqp.Persistent, // make the message persistent
+			Body:         body,
 		},
 	)
 }
@@ -133,7 +134,7 @@ func (s *RabbitMQServer) ConsumeRPC(queueName, routingKey string, handler Notifi
 	msgs, err := s.channel.Consume(
 		q.Name, // queue
 		"",     // consumer
-		true,   // auto-ack
+		false,  // auto-ack is disabled, meaning you need to ack manually
 		false,  // exclusive
 		false,  // no-local
 		false,  // no-wait
@@ -145,36 +146,43 @@ func (s *RabbitMQServer) ConsumeRPC(queueName, routingKey string, handler Notifi
 
 	go func() {
 		for d := range msgs {
-			// Create a new context for each message
+			// Create a new context for each message with a timeout
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
-			func(delivery amqp.Delivery) {
-				defer cancel() // Ensure context is cancelled after processing
+			go func(delivery amqp.Delivery) {
+				defer cancel() // Ensure context cancellation after processing
 
-				// Process the message with handler
+				// Process the message with your custom handler
 				notificationChan, err := handler(delivery)
 				if err != nil {
 					log.Printf("Error handling message: %v", err)
+					// Optionally, send a negative ack to requeue the message.
+					if nackErr := delivery.Nack(false, true); nackErr != nil {
+						log.Printf("Failed to nack message: %v", nackErr)
+					}
 					return
 				}
 
-				// Process all notifications from the channel
+				processedSuccessfully := true
+
+				// Process notifications that your handler returns
 				for {
 					select {
 					case notification, ok := <-notificationChan:
 						if !ok {
-							// Channel closed, we're done
-							return
+							// Notification channel is closed: processing complete
+							goto finish
 						}
 						data, err := json.Marshal(notification)
 						if err != nil {
 							log.Printf("Failed to marshal notification: %v", err)
-							continue
+							processedSuccessfully = false
+							goto finish
 						}
 
 						if err := s.channel.PublishWithContext(ctx,
-							"",               // exchange "" empty string means default exchange otherwise use CarExchange
-							delivery.ReplyTo, // routing key - prefix with notification pattern, [car.notification.+ "ReplyTo"]
+							"",               // Using default exchange here
+							delivery.ReplyTo, // routing key
 							false,            // mandatory
 							false,            // immediate
 							amqp.Publishing{
@@ -183,12 +191,28 @@ func (s *RabbitMQServer) ConsumeRPC(queueName, routingKey string, handler Notifi
 								Body:          data,
 							}); err != nil {
 							log.Printf("Error publishing notification: %v", err)
+							processedSuccessfully = false
+							goto finish
 						} else {
 							log.Printf("Successfully published notification to %s", delivery.ReplyTo)
 						}
+
 					case <-ctx.Done():
 						log.Printf("Context timeout while processing notifications")
-						return
+						processedSuccessfully = false
+						goto finish
+					}
+				}
+
+			finish:
+				// Acknowledge or negatively acknowledge the message based on success
+				if processedSuccessfully {
+					if err := delivery.Ack(false); err != nil {
+						log.Printf("Failed to ack message: %v", err)
+					}
+				} else {
+					if err := delivery.Nack(false, true); err != nil {
+						log.Printf("Failed to nack message: %v", err)
 					}
 				}
 			}(d)

@@ -61,6 +61,9 @@ func CreateNotification(c *gin.Context) {
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "routing key not found"})
 	}
+	if notification.Timestamp.IsZero() {
+		notification.Timestamp = time.Now()
+	}
 	if err := mqServer.PublishNotification(ctx, notification, routingKey); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
