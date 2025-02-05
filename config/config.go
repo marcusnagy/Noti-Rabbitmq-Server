@@ -12,12 +12,17 @@ const (
 	healthPort = "PORTS.HEALTH.Port"
 )
 
+const (
+	rabbitMQURL = "RABBITMQ.URL"
+)
+
 type Conf interface {
 	Validate() error
 }
 
 type Config struct {
-	Ports Ports `mapstructure:"ports"`
+	Ports    Ports          `mapstructure:"ports"`
+	RabbitMQ RabbitMQConfig `mapstructure:"rabbitmq"`
 }
 
 func NewConfig() *Config {
@@ -55,6 +60,7 @@ func viperSetup() (*viper.Viper, error) {
 
 	root.SetDefault(httpPort, 8080)
 	root.SetDefault(healthPort, 8081)
+	root.SetDefault(rabbitMQURL, "amqp://guest:guest@localhost:5672/")
 
 	return root, nil
 }
@@ -62,4 +68,5 @@ func viperSetup() (*viper.Viper, error) {
 func getValues(root *viper.Viper, cfg *Config) {
 	cfg.Ports.HTTPPort = root.GetInt(httpPort)
 	cfg.Ports.HealthPort = root.GetInt(healthPort)
+	cfg.RabbitMQ.URL = root.GetString(rabbitMQURL)
 }
